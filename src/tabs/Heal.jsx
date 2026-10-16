@@ -372,6 +372,8 @@ function Roadmap() {
   );
 }
 
+import FoodLog from '../components/FoodLog.jsx';
+
 export default function Heal({ onDisclaimer }) {
   const [sec, setSec] = useState('scan');
   const paid = hasAccess();
@@ -381,7 +383,7 @@ export default function Heal({ onDisclaimer }) {
     <div className="screen">
       <SectionHead title="🌿 Heal" />
       <div className="row" style={{ marginBottom: 12, gap: 6, overflowX: 'auto' }}>
-        {[['scan', '🔍 Food Scanner'], ['red', '🔴 Red Light'], ['protocol', '🪱 Protocol'], ['roadmap', '🗺️ Roadmap']].map(([id, label]) => (
+        {[['scan', '🔍 Food Scanner'], ['red', '🔴 Red Light'], ['protocol', '🪱 Protocol'], ['roadmap', '🗺️ Roadmap'], ['food', '🥗 Food Log']].map(([id, label]) => (
           <Btn key={id} size="sm" color={sec === id ? 'orange' : 'cream'} onClick={() => setSec(id)} style={{ whiteSpace: 'nowrap' }}>{label}</Btn>
         ))}
       </div>
@@ -390,6 +392,7 @@ export default function Heal({ onDisclaimer }) {
       {sec === 'red' && <Scanner mode="red" />}
       {sec === 'protocol' && <ProtocolTracker />}
       {sec === 'roadmap' && <Roadmap />}
+      {sec === 'food' && <FoodLog />}
 
       <Footer onDisclaimer={onDisclaimer} />
     </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Btn, SectionHead, TrialBanner, Footer, PBar } from '../components/ui.jsx';
 import { useStored, useStreak, todayKey, toast } from '../lib/store.js';
 import { PLANS } from '../lib/paywall.js';
+import { tipOfTheDay } from '../data/tips.js';
 
 const CHECKLIST = [
   { id: 'playlist', label: 'Try a calming playlist', emoji: '🎵' },
@@ -50,6 +51,11 @@ export default function Home({ go, onDisclaimer, onUpgrade, children: activeChil
         <h2 style={{ margin: 0, color: '#1A1040' }}>🌿 Good day, parent!</h2>
         <span className="streak-badge">🔥 {streak} day{streak === 1 ? '' : 's'}</span>
       </div>
+
+      <Card style={{ marginBottom: 12, background: 'linear-gradient(180deg,#fffbe6,#fff1c2)', borderColor: '#f0d98a' }}>
+        <div style={{ fontWeight: 800, color: '#1A1040', fontSize: 13, marginBottom: 4 }}>💡 Today's tip</div>
+        <div style={{ fontSize: 14, color: '#3a2f5c', lineHeight: 1.5 }}>{tipOfTheDay()}</div>
+      </Card>
 
       <Card style={{ marginBottom: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>

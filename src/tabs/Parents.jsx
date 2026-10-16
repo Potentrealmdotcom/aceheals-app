@@ -5,6 +5,7 @@ import ParentReset from '../components/ParentReset.jsx';
 import RoutineBuilder from '../components/RoutineBuilder.jsx';
 import TriggerTracker from '../components/TriggerTracker.jsx';
 import SensorySettings from '../components/SensorySettings.jsx';
+import ParentHelper from '../components/ParentHelper.jsx';
 import { useKidProfile, useParentProfile } from '../lib/kidProfile.js';
 
 export default function Parents() {
@@ -22,6 +23,7 @@ export default function Parents() {
       </div>
       <div className="row" style={{ marginBottom: 12, gap: 6, flexWrap: 'wrap' }}>
         {[
+          ['ask', '🤖 Ask Helper'],
           ['help', '🆘 Hard Moment'],
           ['reset', '🧘 My Reset'],
           ['routines', '📋 Routines'],
@@ -34,6 +36,7 @@ export default function Parents() {
         ))}
       </div>
 
+      {sec === 'ask' && <ParentHelper />}
       {sec === 'help' && <HardMoment />}
       {sec === 'reset' && <ParentReset />}
       {sec === 'sensory' && <SensorySettings />}
