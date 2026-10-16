@@ -870,12 +870,13 @@ const SECTIONS = [
 
 export default function Maverick({ onDisclaimer }) {
   const [sec, setSec] = useState('aac');
+  const [ak] = useStored('activeKid', null);
   const [largeMode, setLarge] = useStored('aacLarge', false);
   const [highContrast, setHC] = useStored('aacHC', false);
 
   return (
     <div className={`screen${highContrast ? ' hc' : ''}`}>
-      <SectionHead title="⚡ Maverick's World"
+      <SectionHead title={`${ak?.emoji || '⚡'} ${ak?.name || 'Maverick'}'s World`}
         right={sec === 'aac' && (
           <div className="row" style={{ gap: 4 }}>
             <Btn size="sm" color={largeMode ? 'orange' : 'cream'} onClick={() => setLarge(!largeMode)}>🔍 Large</Btn>

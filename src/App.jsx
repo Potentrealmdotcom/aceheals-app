@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { DisclaimerModal, BreakButton, Toasts, Btn, Card, Modal } from './components/ui.jsx';
 import { supabase, sb, supabaseConfigured } from './lib/supabase.js';
-import { useStored, toast } from './lib/store.js';
-import { handlePaymentReturn, trialActive } from './lib/paywall.js';
+import { useStored, toast, speak } from './lib/store.js';
+import { getAccess, handlePaymentReturn, trialActive, trialHoursLeft, hasAccess, PLANS, startCheckout } from './lib/paywall.js';
+import { getKids, setActiveKid } from './lib/kids.js';
+import AddChild from './components/AddChild.jsx';
 import { hasPin, setPin, verifyPin, KID_TABS } from './lib/parental.js';
 import Home from './tabs/Home.jsx';
 import Heal from './tabs/Heal.jsx';
@@ -37,13 +39,11 @@ function AuthGate({ onAuth }) {
   const [busy, setBusy] = useState(false);
   const [showParent, setShowParent] = useState(false);
 
-  // Welcome speech on landing page — Giffy greets the kids!
-  useEffect(() => {
-    const t = setTimeout(() => {
-      speak("Hi friends! I'm Giffy! Tap your name to start playing with me!");
-    }, 800);
-    return () => clearTimeout(t);
-  }, []);
+  const [kids, setKids] = useState(getKids);
+  const [showAdd, setShowAdd] = useState(false);
+
+  // Browsers block talking until the first tap, so Giffy waits for a button press.
+  const hearGiffy = () => speak("Hi friends! I'm Giffy! Tap your name to start playing with me!");
 
   const go = async () => {
     if (!email || !pw) { toast('✏️ Enter email + password'); return; }
@@ -71,51 +71,94 @@ function AuthGate({ onAuth }) {
   };
 
   const skip = () => onAuth({ email: '', guest: true });
-  const kidLogin = (kidTab) => onAuth({ email: '', guest: true, kidMode: true, kidTab });
+  const kidLogin = (kidTab) => { setActiveKid(null); onAuth({ email: '', guest: true, kidMode: true, kidTab }); };
+  const customKidLogin = (k) => { setActiveKid(k); onAuth({ email: '', guest: true, kidMode: true, kidTab: k.mode === 'talk' ? 'maverick' : 'manny', kid: k }); };
 
   return (
     <div className="kids-mode" style={{ minHeight: '100vh', padding: '20px 16px 40px', position: 'relative' }}>
       <div className="screen" style={{ position: 'relative', zIndex: 1, maxWidth: 480, margin: '0 auto' }}>
-        {/* HERO — kids first! */}
+        {/* HERO — made for YOUR child */}
         <div style={{ textAlign: 'center', marginBottom: 16, paddingTop: 20 }}>
           <div style={{ fontSize: 80, animation: 'kid-bob 2.4s ease-in-out infinite' }}>🦅</div>
           <h1 style={{
-            fontSize: 38, fontWeight: 900, margin: '8px 0 4px', color: '#fff',
+            fontSize: 36, fontWeight: 900, margin: '8px 0 4px', color: '#fff',
             textShadow: '0 0 20px #00e5ff, 0 0 40px #b537f2',
           }}>
-            Manny & Maverick
+            AceHeals
           </h1>
           <div style={{ fontSize: 16, color: '#ffe600', fontWeight: 700, textShadow: '0 0 12px rgba(255,230,0,.5)' }}>
             ✨ Play. Create. Shine. ✨
           </div>
-          <div style={{ fontSize: 13, color: '#b9a8e8', marginTop: 8 }}>
-            Games • Music • Photos • Stories — made for YOU!
+          <div style={{ fontSize: 14, color: '#d8ccf5', marginTop: 8, lineHeight: 1.5 }}>
+            Build a world made just for <b>your</b> child.<br />Games • Songs • Photos • Stories • Talk &amp; Calm tools
           </div>
+          <button onClick={hearGiffy}
+            style={{ marginTop: 10, background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 16, padding: '8px 16px', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+            🔊 Tap to hear Giffy
+          </button>
         </div>
 
-        {/* KIDS — giant tap targets */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        {/* PARENT CTA — customize for your kid */}
+        <button onClick={() => setShowAdd(true)}
+          style={{
+            width: '100%', background: 'linear-gradient(180deg,#2ECC71,#1fa85a)', border: '3px solid rgba(255,255,255,.5)',
+            borderRadius: 24, padding: '18px 12px', cursor: 'pointer', marginBottom: 6,
+            boxShadow: '0 0 24px rgba(46,204,113,.5), 0 5px 0 rgba(0,0,0,.35)',
+          }}>
+          <div style={{ fontSize: 30 }}>➕ 🧒</div>
+          <div style={{ fontSize: 21, fontWeight: 900, color: '#fff' }}>Add Your Child</div>
+          <div style={{ fontSize: 12, color: '#fff', opacity: 0.9 }}>Pick their name, buddy &amp; colors • 🎁 24 hours free • No card</div>
+        </button>
+        <div style={{ textAlign: 'center', fontSize: 11, color: '#b9a8e8', marginBottom: 14 }}>
+          Parents set it up once — kids just tap their name.
+        </div>
+
+        {/* YOUR KIDS — big tap targets */}
+        {kids.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#b9a8e8', fontWeight: 800, textAlign: 'center', marginBottom: 8 }}>TAP YOUR NAME</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {kids.map((k, i) => (
+                <button key={k.id} onClick={() => customKidLogin(k)}
+                  style={{
+                    background: `linear-gradient(180deg,${k.color},${k.color}cc)`, border: '3px solid rgba(255,255,255,.5)',
+                    borderRadius: 26, padding: '22px 8px', cursor: 'pointer',
+                    boxShadow: `0 0 26px ${k.color}88, 0 6px 0 rgba(0,0,0,.4)`,
+                    animation: 'kid-bob 2.4s ease-in-out infinite', animationDelay: (i * 0.25) + 's',
+                  }}>
+                  <div style={{ fontSize: 52 }}>{k.emoji}</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', textShadow: '0 2px 0 rgba(0,0,0,.35)' }}>{k.name}</div>
+                  <div style={{ fontSize: 12, color: '#fff', opacity: 0.85 }}>Tap to play!</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* READY-MADE WORLDS */}
+        <div style={{ fontSize: 12, color: '#b9a8e8', fontWeight: 800, textAlign: 'center', marginBottom: 8 }}>
+          {kids.length ? 'OR TRY A READY-MADE WORLD' : 'OR PEEK INSIDE A READY-MADE WORLD'}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
           <button onClick={() => kidLogin('manny')}
             style={{
               background: 'linear-gradient(180deg,#ffe600,#ff9d00)', border: '3px solid rgba(255,255,255,.4)',
-              borderRadius: 28, padding: '28px 12px', cursor: 'pointer',
-              boxShadow: '0 0 30px rgba(255,230,0,.5), 0 6px 0 rgba(0,0,0,.4)',
-              animation: 'kid-bob 2.4s ease-in-out infinite',
+              borderRadius: 24, padding: '16px 8px', cursor: 'pointer',
+              boxShadow: '0 0 20px rgba(255,230,0,.4), 0 5px 0 rgba(0,0,0,.4)',
             }}>
-            <div style={{ fontSize: 56 }}>🎮</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#0d0628' }}>Manny</div>
-            <div style={{ fontSize: 12, color: '#0d0628', opacity: 0.7 }}>Tap to play!</div>
+            <div style={{ fontSize: 38 }}>🎮</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: '#0d0628' }}>Manny</div>
+            <div style={{ fontSize: 11, color: '#0d0628', opacity: 0.7 }}>Games &amp; learning</div>
           </button>
           <button onClick={() => kidLogin('maverick')}
             style={{
               background: 'linear-gradient(180deg,#b537f2,#7b2ff7)', border: '3px solid rgba(255,255,255,.4)',
-              borderRadius: 28, padding: '28px 12px', cursor: 'pointer',
-              boxShadow: '0 0 30px rgba(181,55,242,.5), 0 6px 0 rgba(0,0,0,.4)',
-              animation: 'kid-bob 2.4s ease-in-out infinite', animationDelay: '.3s',
+              borderRadius: 24, padding: '16px 8px', cursor: 'pointer',
+              boxShadow: '0 0 20px rgba(181,55,242,.4), 0 5px 0 rgba(0,0,0,.4)',
             }}>
-            <div style={{ fontSize: 56 }}>⚡</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>Maverick</div>
-            <div style={{ fontSize: 12, color: '#fff', opacity: 0.7 }}>Tap to play!</div>
+            <div style={{ fontSize: 38 }}>⚡</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: '#fff' }}>Maverick</div>
+            <div style={{ fontSize: 11, color: '#fff', opacity: 0.7 }}>Talk &amp; calm tools</div>
           </button>
         </div>
 
@@ -130,6 +173,25 @@ function AuthGate({ onAuth }) {
               <div style={{ fontSize: 11, color: '#b9a8e8', fontWeight: 700 }}>{l}</div>
             </div>
           ))}
+        </div>
+
+        {/* What parents get that nobody else offers */}
+        <div style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 18, padding: 14, marginBottom: 16 }}>
+          <div style={{ textAlign: 'center', fontWeight: 900, color: '#ffe600', fontSize: 15, marginBottom: 8 }}>
+            💛 The Parent Zone — you're not alone in this
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12, color: '#e8dffa' }}>
+            <div>🆘 Hard-Moment help, step by step</div>
+            <div>🧘 A reset for YOU, the parent</div>
+            <div>📋 Visual routines you can build</div>
+            <div>📝 Trigger tracker &amp; patterns</div>
+            <div>🎛️ Sensory settings (calm, big, dim)</div>
+            <div>📊 Insights on how they're doing</div>
+          </div>
+          <button onClick={() => { getAccess(); onAuth({ email: '', guest: true, startTab: 'parents' }); }}
+            style={{ marginTop: 10, width: '100%', background: '#ffe600', color: '#0d0628', border: 'none', borderRadius: 14, padding: '11px', fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>
+            💛 Open the Parent Zone (free for 24 hours)
+          </button>
         </div>
 
         {/* Parent zone — collapsed by default */}
@@ -168,6 +230,10 @@ function AuthGate({ onAuth }) {
           )}
         </div>
       </div>
+      {showAdd && (
+        <AddChild onClose={() => setShowAdd(false)}
+          onCreated={(k) => { setKids(getKids()); setShowAdd(false); customKidLogin(k); }} />
+      )}
     </div>
   );
 }
@@ -183,6 +249,8 @@ export default function App() {
   const [showPinGate, setShowPinGate] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [trialDismissed, setTrialDismissed] = useState(false);
+  const [activeKid] = useStored('activeKid', null);
   const [deaf] = useStored('deafMode', false);
   const [hc] = useStored('highContrast', false);
   const [lg] = useStored('largeText', false);
@@ -217,6 +285,11 @@ export default function App() {
     setKidMode(false);
     setTab('home');
   };
+
+  // Parent opened the Parent Zone straight from the landing page
+  useEffect(() => {
+    if (user?.startTab) setTab(user.startTab);
+  }, [user]);
 
   // Enter kids mode when a kid taps their name on the login screen
   useEffect(() => {
@@ -293,6 +366,7 @@ export default function App() {
   }
 
   const openDisclaimer = () => setShowDisclaimer(true);
+  const trialOver = !hasAccess() && !trialDismissed && tab !== 'settings';
 
   return (
     <div className={`${hc ? 'hc' : ''}${lg ? ' lgtext' : ''}${deaf ? ' deaf' : ''}${kidMode ? ' kids-mode' : ''} ${sensoryClasses}`}>
@@ -302,7 +376,13 @@ export default function App() {
             <h1>🌿 AceHeals</h1>
             <div className="sponsor">Sponsored by POTENT ['PRÄDƏKT]®</div>
           </div>
-          <div className="row" style={{ gap: 6 }}>
+          <div className="row" style={{ gap: 6, marginRight: 58, alignItems: 'center' }}>
+            {!hasAccess() ? (
+              <button onClick={() => setShowUpgrade(true)} className="trial-pill" style={{ background: '#e74c3c' }}>🔒 Unlock</button>
+            ) : trialActive() ? (
+              <button onClick={() => setShowUpgrade(true)} className="trial-pill">🎁 {trialHoursLeft() >= 1 ? Math.floor(trialHoursLeft()) + 'h' : Math.ceil(trialHoursLeft() * 60) + 'm'} free</button>
+            ) : null}
+            <BreakButton onBreak={goBreak} compact />
             <button onClick={() => setTab('settings')} aria-label="Settings"
               style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 12, color: '#fff', fontSize: 20, padding: '8px 10px', cursor: 'pointer' }}>⚙️</button>
           </div>
@@ -335,6 +415,30 @@ export default function App() {
       {tab === 'parents' && <Parents />}
       {tab === 'settings' && <Settings onDisclaimer={openDisclaimer} user={user} onLogout={logout} />}
 
+      {trialOver && (
+        <div className="modal-veil" style={{ zIndex: 400, alignItems: 'center' }}>
+          <div className="modal-card" style={{ borderRadius: 22, textAlign: 'center' }}>
+            <div style={{ fontSize: 60 }}>{activeKid?.emoji || '🎉'}</div>
+            <h2 style={{ color: '#1A1040', margin: '6px 0' }}>
+              {activeKid?.name ? activeKid.name + "'s world is waiting!" : 'Your free day is done!'}
+            </h2>
+            <p style={{ color: '#6b5f85', fontSize: 14 }}>
+              Everything {activeKid?.name || 'your child'} made is saved. Unlock to keep playing, creating and learning.
+            </p>
+            <div style={{ display: 'grid', gap: 8, margin: '12px 0' }}>
+              <Btn block onClick={() => startCheckout('lifetime', '').catch((e) => toast('💳 ' + e.message))}>
+                {PLANS.lifetime.label} — own it forever 💛
+              </Btn>
+              <Btn block color="purple" onClick={() => startCheckout('monthly', '').catch((e) => toast('💳 ' + e.message))}>
+                {PLANS.monthly.label} — cancel anytime
+              </Btn>
+              <Btn block color="cream" onClick={() => setTrialDismissed(true)}>Keep using free tools (Calm Down &amp; Break)</Btn>
+            </div>
+            <div style={{ fontSize: 12, color: '#8a7f9e' }}>30-day money-back guarantee • Receipt emailed by Stripe</div>
+          </div>
+        </div>
+      )}
+
       {showDisclaimer && <DisclaimerModal onClose={() => setShowDisclaimer(false)} />}
 
       {showUpgrade && (
@@ -345,7 +449,6 @@ export default function App() {
         </div>
       )}
 
-      <BreakButton onBreak={goBreak} />
 
       {kidMode && windingDown && (
         <WindDown kidId={user?.kidTab || 'manny'} onComplete={() => exitKidMode()} />

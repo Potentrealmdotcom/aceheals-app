@@ -361,11 +361,12 @@ export default function Manny({ onDisclaimer }) {
   const [sec, setSec] = useState('games');
   const [game, setGame] = useState(null);
   const [stars] = useStored('mannyStars', 0);
+  const [ak] = useStored('activeKid', null);
   const active = GAMES.find((g) => g.id === game);
 
   return (
     <div className="screen">
-      <SectionHead title="🎮 Manny's World" right={<span className="streak-badge">⭐ {stars}</span>} />
+      <SectionHead title={`${ak?.emoji || '🎮'} ${ak?.name || 'Manny'}'s World`} right={<span className="streak-badge">⭐ {stars}</span>} />
       {!game && (
         <div className="row" style={{ marginBottom: 12, gap: 6, flexWrap: 'wrap' }}>
           {[['games', '🎮 Games'], ['camera', '📷 Camera'], ['story', '📖 Story'], ['world', '🌍 My World'], ['buddy', '🎨 My Buddy'], ['rewards', '🏆 Rewards'], ['report', '📊 Report']].map(([id, l]) => (

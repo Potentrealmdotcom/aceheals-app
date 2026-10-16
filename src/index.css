@@ -110,7 +110,7 @@ html, body {
   background: linear-gradient(180deg, #fffdfb 0%, #ffF3E6 55%, #fbe9d4 100%);
   border-top: 1px solid #ecd9bd;
   box-shadow: inset 0 1px 0 #fff, 0 -6px 18px rgba(180,120,60,.14);
-  padding: 6px 112px calc(8px + env(safe-area-inset-bottom)) 4px;
+  padding: 6px 4px calc(8px + env(safe-area-inset-bottom)) 4px;
   overflow-x: auto;
 }
 .tabbar button {
@@ -500,4 +500,17 @@ select.input-gloss { appearance: none; }
   0% { transform: scale(.5); opacity: 0; }
   50% { transform: scale(1.1); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+/* Break button now lives in the header — never floats over the screen */
+.break-btn-mini {
+  background: linear-gradient(180deg,#ff8f7a,#e74c3c); color: #fff; font-weight: 900; font-size: 12px;
+  border: 2px solid #fff; border-radius: 999px; padding: 7px 11px; cursor: pointer; font-family: var(--font);
+  box-shadow: 0 2px 8px rgba(231,76,60,.5); white-space: nowrap;
+}
+.break-btn-mini:active { transform: scale(.94); }
+.trial-pill {
+  background: linear-gradient(180deg,#ffb08a,#FF6B35); color: #fff; font-weight: 800; font-size: 12px;
+  border: 2px solid rgba(255,255,255,.7); border-radius: 999px; padding: 7px 10px; cursor: pointer;
+  font-family: var(--font); white-space: nowrap;
 }

@@ -1,7 +1,7 @@
 // AceHeals service worker — offline-first for core tools.
 // Caches the app shell + AAC board, Calm Down Corner, Visual Schedule data
 // so they work with no connection (per spec: core tools work fully offline).
-const CACHE = 'aceheals-v1';
+const CACHE = 'aceheals-v2';
 const CORE = [
   '/',
   '/index.html',

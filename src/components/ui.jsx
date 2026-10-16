@@ -79,7 +79,13 @@ export function Footer({ onDisclaimer }) {
 }
 
 // Always-visible "I NEED A BREAK" button (per spec — every screen)
-export function BreakButton({ onBreak }) {
+export function BreakButton({ onBreak, compact }) {
+  // compact = small button that lives in the header so it never covers games or buttons
+  if (compact) {
+    return (
+      <button className="break-btn-mini" onClick={onBreak} aria-label="I need a break">🛑 Break</button>
+    );
+  }
   return (
     <button className="break-btn" onClick={onBreak} aria-label="I need a break">
       🛑<br />I NEED<br />A BREAK
