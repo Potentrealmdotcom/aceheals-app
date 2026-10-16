@@ -177,20 +177,27 @@ function AuthGate({ onAuth }) {
 
         {/* What parents get that nobody else offers */}
         <div style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 18, padding: 14, marginBottom: 16 }}>
-          <div style={{ textAlign: 'center', fontWeight: 900, color: '#ffe600', fontSize: 15, marginBottom: 8 }}>
-            💛 The Parent Zone — you're not alone in this
+          <div style={{ textAlign: 'center', fontWeight: 900, color: '#ffe600', fontSize: 15, marginBottom: 2 }}>
+            💛 For Grown-Ups — tools you won't find anywhere else
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 11, color: '#b9a8e8', marginBottom: 8 }}>
+            Built by a parent, for parents. Doctor-first, never medical claims.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12, color: '#e8dffa' }}>
+            <div>🔴 Red Light scanner — scan products in the store</div>
+            <div>🔍 Food scanner with a Clean Score</div>
+            <div>🪱 Parasite protocol tracker (what families research)</div>
+            <div>🌙 Moon-phase &amp; weekly symptom log</div>
+            <div>🗺️ 4-phase Wellness Roadmap</div>
             <div>🆘 Hard-Moment help, step by step</div>
             <div>🧘 A reset for YOU, the parent</div>
-            <div>📋 Visual routines you can build</div>
-            <div>📝 Trigger tracker &amp; patterns</div>
+            <div>📝 Trigger tracker &amp; routines</div>
             <div>🎛️ Sensory settings (calm, big, dim)</div>
-            <div>📊 Insights on how they're doing</div>
+            <div>🍎 100+ clean recipes &amp; meal planner</div>
           </div>
-          <button onClick={() => { getAccess(); onAuth({ email: '', guest: true, startTab: 'parents' }); }}
+          <button onClick={() => { getAccess(); onAuth({ email: '', guest: true, startTab: 'home' }); }}
             style={{ marginTop: 10, width: '100%', background: '#ffe600', color: '#0d0628', border: 'none', borderRadius: 14, padding: '11px', fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>
-            💛 Open the Parent Zone (free for 24 hours)
+            💛 Open the grown-ups side (free for 24 hours)
           </button>
         </div>
 
