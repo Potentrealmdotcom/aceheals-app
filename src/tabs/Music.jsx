@@ -5,6 +5,7 @@ import { hasAccess } from '../lib/paywall.js';
 import { FREQUENCIES, KIDS_CHANNELS, PLAYLISTS, SLEEP_SOUNDS } from '../data/content.js';
 import { playFrequency, playAmbience, stopAudio, drum } from '../lib/audio.js';
 import { saveBeat, listBeats, deleteBeat } from '../lib/beatStore.js';
+import { requestPinGate } from '../lib/parental.js';
 import { BUNDLED_BEATS } from '../data/beats.js';
 import SongStudio from '../components/SongStudio.jsx';
 
@@ -71,10 +72,14 @@ function Music({ onDisclaimer }) {
 
   const stopBeat = () => { beatAudioRef.current?.pause(); setCurrentBeat(null); };
 
-  const removeBeat = async (id) => {
-    await deleteBeat(id);
-    setInstrumentals(await listBeats());
-    if (currentBeat === id) { beatAudioRef.current?.pause(); setCurrentBeat(null); }
+  // Deleting a saved beat needs the parent PIN (App.jsx runs the gate)
+  const removeBeat = (id) => {
+    requestPinGate(async () => {
+      await deleteBeat(id);
+      setInstrumentals(await listBeats());
+      if (currentBeat === id) { beatAudioRef.current?.pause(); setCurrentBeat(null); }
+      toast('🗑️ Beat deleted');
+    });
   };
 
   const toggleSleepMix = (id) => {

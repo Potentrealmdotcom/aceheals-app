@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DisclaimerModal, BreakButton, Toasts, Btn, Card, Modal } from './components/ui.jsx';
 import { supabase, sb, supabaseConfigured } from './lib/supabase.js';
 import { useStored, toast, speak } from './lib/store.js';
@@ -248,7 +248,28 @@ function AuthGate({ onAuth }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [tab, setTab] = useState('home');
+  const [tab, setTabState] = useState('home');
+  // Global back button: every tab change stacks the previous tab;
+  // Back pops it. Empty stack = root view = no button.
+  const tabHistoryRef = useRef([]);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const setTab = (next) => {
+    if (next !== tab) {
+      tabHistoryRef.current = [...tabHistoryRef.current.slice(-19), tab];
+      setCanGoBack(true);
+    }
+    setTabState(next);
+  };
+  const resetTabHistory = () => { tabHistoryRef.current = []; setCanGoBack(false); };
+  const goBack = () => {
+    const stack = tabHistoryRef.current;
+    if (!stack.length) return;
+    const prev = stack[stack.length - 1];
+    tabHistoryRef.current = stack.slice(0, -1);
+    setCanGoBack(tabHistoryRef.current.length > 0);
+    setTabState(prev);
+    window.scrollTo(0, 0);
+  };
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [breakMode, setBreakMode] = useState(false);
@@ -291,6 +312,7 @@ export default function App() {
     setUser(null);
     setKidMode(false);
     setTab('home');
+    resetTabHistory();
   };
 
   // Parent opened the Parent Zone straight from the landing page
@@ -303,6 +325,7 @@ export default function App() {
     if (user?.kidMode) {
       setKidMode(true);
       setTab(user.kidTab || 'manny');
+      resetTabHistory(); // kids start fresh — Back stays inside their tabs
     }
   }, [user]);
 
@@ -319,17 +342,34 @@ export default function App() {
     sensory.dimBrightness ? 'sensory-dim' : '',
   ].filter(Boolean).join(' ');
 
-  // Grown-ups gate: PIN required to leave kids mode
-  const exitKidMode = () => {
+  // Grown-ups gate: PIN required to leave kids mode — and to delete saved
+  // creations (beats, songs, photos). When a child component requests the
+  // gate (aceheals:pin-gate), its action waits in pinActionRef and runs
+  // after a successful PIN instead of the exit-kids-mode behavior.
+  const pinActionRef = useRef(null);
+  const openPinFlow = (action) => {
+    pinActionRef.current = action || null;
+    setPinInput('');
     if (!hasPin()) {
       // No PIN yet — let parent set one up right here
-      setPinInput('');
       setShowPinSetup(true);
       return;
     }
-    setPinInput('');
     setShowPinGate(true);
   };
+  const cancelPinFlow = () => {
+    pinActionRef.current = null;
+    setShowPinGate(false);
+    setShowPinSetup(false);
+    setPinInput('');
+  };
+  const exitKidMode = () => openPinFlow(null);
+
+  useEffect(() => {
+    const h = (e) => openPinFlow(e.detail?.onOk);
+    window.addEventListener('aceheals:pin-gate', h);
+    return () => window.removeEventListener('aceheals:pin-gate', h);
+  }, []);
 
   const submitPinSetup = () => {
     if (setPin(pinInput)) {
@@ -344,9 +384,14 @@ export default function App() {
 
   const submitPin = () => {
     if (verifyPin(pinInput)) {
+      const action = pinActionRef.current;
+      pinActionRef.current = null;
       setShowPinGate(false);
+      setPinInput('');
+      if (action) { action(); return; }
       setKidMode(false);
       setTab('home');
+      resetTabHistory();
       toast('👋 Welcome back, grown-up!');
     } else {
       toast('❌ Wrong PIN — try again');
@@ -379,9 +424,15 @@ export default function App() {
     <div className={`${hc ? 'hc' : ''}${lg ? ' lgtext' : ''}${deaf ? ' deaf' : ''}${kidMode ? ' kids-mode' : ''} ${sensoryClasses}`}>
       <header className="app-header">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <div>
-            <h1>🌿 AceHeals</h1>
-            <div className="sponsor">Sponsored by POTENT ['PRÄDƏKT]®</div>
+          <div className="row" style={{ gap: 10 }}>
+            {canGoBack && (
+              <button onClick={goBack} aria-label="Go back"
+                style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 800, padding: '8px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back</button>
+            )}
+            <div>
+              <h1>🌿 AceHeals</h1>
+              <div className="sponsor">Sponsored by POTENT ['PRÄDƏKT]®</div>
+            </div>
           </div>
           <div className="row" style={{ gap: 6, marginRight: 58, alignItems: 'center' }}>
             {!hasAccess() ? (
@@ -462,7 +513,7 @@ export default function App() {
       )}
 
       {showPinGate && (
-        <Modal onClose={() => setShowPinGate(false)} title="✋ Grown-ups only!">
+        <Modal onClose={cancelPinFlow} title="✋ Grown-ups only!">
           <div style={{ textAlign: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 48 }}>🔒</div>
             <div style={{ fontSize: 14, color: '#8a7f9e', marginTop: 8 }}>
@@ -477,13 +528,13 @@ export default function App() {
             style={{ textAlign: 'center', fontSize: 28, letterSpacing: 12, marginBottom: 12 }} />
           <Btn block onClick={submitPin}>Unlock 🔓</Btn>
           <div style={{ textAlign: 'center', marginTop: 8 }}>
-            <Btn size="sm" color="cream" onClick={() => setShowPinGate(false)}>← Back to playing! 🎮</Btn>
+            <Btn size="sm" color="cream" onClick={cancelPinFlow}>← Back to playing! 🎮</Btn>
           </div>
         </Modal>
       )}
 
       {showPinSetup && (
-        <Modal onClose={() => setShowPinSetup(false)} title="✋ Whoa there!">
+        <Modal onClose={cancelPinFlow} title="✋ Whoa there!">
           <div style={{ textAlign: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 56 }}>👨‍👩‍👧</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#1A1040', marginTop: 8 }}>
@@ -505,7 +556,7 @@ export default function App() {
               style={{ textAlign: 'center', fontSize: 28, letterSpacing: 12, marginBottom: 8 }} />
             <Btn block onClick={submitPinSetup}>Set PIN ✅</Btn>
           </div>
-          <Btn block color="cream" onClick={() => setShowPinSetup(false)}>← Back to playing! 🎮</Btn>
+          <Btn block color="cream" onClick={cancelPinFlow}>← Back to playing! 🎮</Btn>
         </Modal>
       )}
 

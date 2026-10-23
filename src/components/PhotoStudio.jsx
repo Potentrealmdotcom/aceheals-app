@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Btn, SectionHead } from '../components/ui.jsx';
 import { useStored, toast } from '../lib/store.js';
+import { requestPinGate } from '../lib/parental.js';
 
 const FRAMES = [
   { id: 'none', name: 'No frame', icons: [] },
@@ -63,7 +64,11 @@ export default function PhotoStudio() {
     try { navigator.vibrate?.(50); } catch {}
   };
 
-  const deletePhoto = (url) => setGallery((g) => g.filter((x) => x !== url));
+  // Deleting a saved photo needs the parent PIN (App.jsx runs the gate)
+  const deletePhoto = (url) => requestPinGate(() => {
+    setGallery((g) => g.filter((x) => x !== url));
+    toast('🗑️ Photo deleted');
+  });
 
   const exportPhoto = (url, i) => {
     const a = document.createElement('a');

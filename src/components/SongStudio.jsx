@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Card, Btn, SectionHead } from './ui.jsx';
 import { useStored, toast, speak } from '../lib/store.js';
+import { requestPinGate } from '../lib/parental.js';
 import { BUNDLED_BEATS } from '../data/beats.js';
 
 // Song Studio — pick a beat, write lyrics with parent help, record your song!
@@ -53,10 +54,13 @@ export default function SongStudio({ kidId = 'manny', kidName = 'Manny' }) {
     updateSong(songId, { lines: [...song.lines, ''] });
   };
 
+  // Deleting a saved song needs the parent PIN (App.jsx runs the gate)
   const deleteSong = (id) => {
-    setSongs(songs.filter((s) => s.id !== id));
-    if (activeSong === id) setActiveSong(null);
-    toast('🗑️ Song deleted');
+    requestPinGate(() => {
+      setSongs((cur) => cur.filter((s) => s.id !== id));
+      if (activeSong === id) setActiveSong(null);
+      toast('🗑️ Song deleted');
+    });
   };
 
   // Play beat + record vocals simultaneously

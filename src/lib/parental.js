@@ -32,3 +32,12 @@ export function clearPin() {
 
 // Tabs visible in Kids Mode (kid-safe only — no protocols, community, or payments)
 export const KID_TABS = ['manny', 'maverick', 'music', 'potty'];
+
+// Ask the app shell (App.jsx) to run the parent-PIN flow before a
+// destructive action — deleting a saved beat, song, or photo.
+// onOk runs ONLY after the parent enters the correct PIN; when no PIN
+// exists yet, App first routes through the PIN setup modal, then the gate.
+// (Same event pattern as aceheals:toast in store.js — App owns the modals.)
+export function requestPinGate(onOk) {
+  window.dispatchEvent(new CustomEvent('aceheals:pin-gate', { detail: { onOk } }));
+}
