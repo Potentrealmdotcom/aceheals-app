@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Btn, SectionHead, Empty, Footer, Modal, Confetti } from '../components/ui.jsx';
 import { useStored, toast } from '../lib/store.js';
-import { getAccess, setAccess, trialHoursLeft, trialActive, restorePurchase, PLANS, startCheckout } from '../lib/paywall.js';
+import { getAccess, trialHoursLeft, trialActive, restorePurchase, PLANS, startCheckout, redeemPromoCode, promoDaysLeft } from '../lib/paywall.js';
 import { supabase, sb, supabaseConfigured } from '../lib/supabase.js';
 import { DISCLAIMER } from '../lib/disclaimer.js';
 import { hasPin, setPin } from '../lib/parental.js';
@@ -33,6 +33,8 @@ function Settings({ onDisclaimer, user, onLogout }) {
   };
   const [lg, setLg] = useStored('largeText', false);
   const [lang, setLang] = useStored('lang', 'English');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoMsg, setPromoMsg] = useState(null); // { ok: bool, text }
   const [showSub, setShowSub] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,21 @@ function Settings({ onDisclaimer, user, onLogout }) {
     try { await startCheckout(planId, user?.email || ''); }
     catch (e) { toast('💳 ' + e.message); }
     finally { setBusy(false); }
+  };
+
+  const redeem = () => {
+    const r = redeemPromoCode(promoCode);
+    if (r.ok) {
+      refreshAccess();
+      setPromoCode('');
+      setCelebrate(true);
+      const date = new Date(r.until).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+      setPromoMsg({ ok: true, text: `🎉 ${r.daysAdded} days added! Full access until ${date}.` });
+      toast('🎁 Code redeemed — enjoy full access!');
+    } else {
+      setPromoMsg({ ok: false, text: r.message });
+      toast('🎁 ' + r.message);
+    }
   };
 
   const restore = async () => {
@@ -93,6 +110,10 @@ function Settings({ onDisclaimer, user, onLogout }) {
   };
 
   const hrs = trialHoursLeft();
+  const promoOn = Boolean(!access.paid && access.promoUntil && Date.now() < access.promoUntil);
+  const promoEndDate = access.promoUntil
+    ? new Date(access.promoUntil).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    : '';
 
   return (
     <div className={`screen${hc ? ' hc' : ''}${lg ? ' lgtext' : ''}${deaf ? ' deaf' : ''}`}>
@@ -136,9 +157,31 @@ function Settings({ onDisclaimer, user, onLogout }) {
           </div>
         ) : (
           <div>
-            <div className="pill yellow" style={{ marginBottom: 8 }}>🎁 Free trial: {trialActive() ? Math.ceil(hrs) + 'h left' : 'ended'}</div>
+            {promoOn ? (
+              <div className="pill" style={{ marginBottom: 8, background: '#d9f7e8', color: '#1a7a4a' }}>
+                🎁 Book code active — full access until {promoEndDate} ({promoDaysLeft()} day{promoDaysLeft() === 1 ? '' : 's'} left)
+              </div>
+            ) : (
+              <div className="pill yellow" style={{ marginBottom: 8 }}>🎁 Free trial: {trialActive() ? Math.ceil(hrs) + 'h left' : 'ended'}</div>
+            )}
             <div style={{ marginTop: 8 }}><Btn block onClick={() => setShowSub(true)}>Upgrade 💛</Btn></div>
             <div style={{ marginTop: 8 }}><Btn block color="cream" onClick={restore} disabled={busy}>{busy ? 'Checking…' : 'Restore Purchase 🔄'}</Btn></div>
+            <div style={{ borderTop: '1px solid #f5ead8', marginTop: 14, paddingTop: 12 }}>
+              <b style={{ fontSize: 14 }}>📚 Have a code from a coloring book?</b>
+              <div style={{ fontSize: 13, color: '#8a7f9e', margin: '4px 0 8px' }}>
+                Every POTENT Publishing coloring book comes with 7 days of full AceHeals access. Enter the code from the bonus page in your book:
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <input className="input-gloss" placeholder="e.g. ANIMALS7" value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && redeem()}
+                  style={{ flex: 1, textTransform: 'uppercase', letterSpacing: 2 }} />
+                <Btn color="orange" onClick={redeem}>Redeem 🎁</Btn>
+              </div>
+              {promoMsg && (
+                <div style={{ fontSize: 13, marginTop: 8, color: promoMsg.ok ? '#1a7a4a' : '#c0392b' }}>{promoMsg.text}</div>
+              )}
+            </div>
           </div>
         )}
       </Card>

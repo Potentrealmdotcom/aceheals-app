@@ -7,11 +7,12 @@ export const PLANS = {
   monthly: { id: 'monthly', name: 'Monthly', price: 12.99, label: '$12.99/month', note: 'Cancel anytime.' },
 };
 
-// access = { paid: bool, plan: 'lifetime'|'monthly'|null, trialStart: ts, graceUntil: ts|null }
+// access = { paid: bool, plan: 'lifetime'|'monthly'|null, trialStart: ts,
+//            graceUntil: ts|null, promoUntil: ts|null, redeemedCodes: [string] }
 export function getAccess() {
   const a = load('access', null);
   if (a) return a;
-  const fresh = { paid: false, plan: null, trialStart: Date.now(), graceUntil: null };
+  const fresh = { paid: false, plan: null, trialStart: Date.now(), graceUntil: null, promoUntil: null, redeemedCodes: [] };
   save('access', fresh);
   return fresh;
 }
@@ -32,9 +33,55 @@ export function isPaid() {
   if (a.paid) return true;
   // 3-day grace period on failed payments before blocking (per spec)
   if (a.graceUntil && Date.now() < a.graceUntil) return true;
+  // Book promo code still running (see PROMO_CODES below)
+  if (a.promoUntil && Date.now() < a.promoUntil) return true;
   return false;
 }
 export function hasAccess() { return trialActive() || isPaid(); }
+
+// ── POTENT Publishing coloring-book promo codes ─────────────────────────────
+// Each book prints one code on its AceHeals bonus page. A code grants 7 DAYS
+// of full premium access, counted from redemption (or stacked onto a promo
+// already running). Redemption lives in the same local `access` record as
+// the trial, so it persists across reloads and works offline afterwards —
+// same enforcement level as the trial / parent PIN (per-device local store).
+export const PROMO_CODES = {
+  ANIMALS7: { days: 7, book: 'Bold & Easy Animals' },
+  DINOS7: { days: 7, book: 'Bold & Easy Dinosaurs' },
+  TRUCKS7: { days: 7, book: 'Bold & Easy Trucks & Machines' },
+  PETS7: { days: 7, book: 'Bold & Easy Cats & Dogs' },
+  MAGIC7: { days: 7, book: 'Bold & Easy Unicorns & Magic' },
+  HEROES7: { days: 7, book: 'POTENT Heroes' },
+};
+
+export function promoActive() {
+  const a = getAccess();
+  return Boolean(a.promoUntil && Date.now() < a.promoUntil);
+}
+export function promoDaysLeft() {
+  const a = getAccess();
+  if (!a.promoUntil) return 0;
+  return Math.max(0, Math.ceil((a.promoUntil - Date.now()) / 864e5));
+}
+
+// Redeem a book code. Returns { ok, ... } — never throws.
+// One redemption per code per device/account-local store (redeemedCodes).
+export function redeemPromoCode(raw) {
+  const code = String(raw || '').trim().toUpperCase().replace(/[\s-]+/g, '');
+  const entry = PROMO_CODES[code];
+  if (!entry) {
+    return { ok: false, reason: 'invalid', message: "Hmm, that code doesn't match one of our books. Check the letters and try again 💛" };
+  }
+  const a = getAccess();
+  const used = a.redeemedCodes || [];
+  if (used.includes(code)) {
+    return { ok: false, reason: 'used', message: 'Good news — this code was already redeemed here, so its 7 days are already counted 🎁' };
+  }
+  const base = Math.max(Date.now(), a.promoUntil || 0);
+  const until = base + entry.days * 864e5;
+  setAccess({ ...a, promoUntil: until, redeemedCodes: [...used, code] });
+  return { ok: true, code, book: entry.book, daysAdded: entry.days, until };
+}
 
 // Per-tab trial limits after 24h unpaid (per spec)
 export const TRIAL_LIMITS = {
@@ -66,7 +113,7 @@ export async function restorePurchase(userId) {
     return data;
   }, null);
   if (row && row.paid) {
-    setAccess({ paid: true, plan: row.plan || 'lifetime', trialStart: getAccess().trialStart, graceUntil: null });
+    setAccess({ ...getAccess(), paid: true, plan: row.plan || 'lifetime', graceUntil: null });
     return true;
   }
   return false;
@@ -97,7 +144,7 @@ export async function handlePaymentReturn() {
     const res = await fetch('/.netlify/functions/verify-access?session_id=' + encodeURIComponent(sessionId || ''));
     const data = await res.json();
     if (data.paid) {
-      setAccess({ paid: true, plan: data.plan || 'lifetime', trialStart: getAccess().trialStart, graceUntil: null });
+      setAccess({ ...getAccess(), paid: true, plan: data.plan || 'lifetime', graceUntil: null });
     }
   } catch { /* offline — keep trial state, user can hit Restore Purchase later */ }
   window.history.replaceState({}, '', window.location.pathname);
